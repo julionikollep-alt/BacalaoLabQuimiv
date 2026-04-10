@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <title>Guía de Biología Molecular - Unimetro</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f8fb; margin: 0; color: #003366; }
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #001f3f; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 99999;
+            color: white; text-align: center;
+        }
+        #fish { width: 220px; cursor: pointer; animation: spin 2s linear infinite; transition: transform 0.3s ease; }
+        #fish:hover { transform: scale(1.1); }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .hidden { opacity: 0; visibility: hidden; transition: all 0.8s ease; }
+        #falling-fishes {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; overflow: hidden; z-index: 1;
+        }
+        .fish-falling {
+            position: absolute; width: 60px; opacity: 0.7;
+            animation: fall linear forwards;
+        }
+        @keyframes fall {
+            0% { transform: translateY(-120px) rotate(0deg); }
+            100% { transform: translateY(120vh) rotate(720deg); }
+        }
+
+        header { background: #003366; color: white; text-align: center; padding: 30px; }
+        nav {
+            background: #002244; padding: 15px; text-align: center;
+            position: sticky; top: 0; z-index: 100;
+        }
+        nav a {
+            color: white; margin: 0 12px; text-decoration: none; font-weight: bold;
+            padding: 10px 18px; border-radius: 6px; transition: 0.3s; display: inline-block;
+        }
+        nav a:hover, nav a.active { background: #FF9900; color: white; }
+
+        main { max-width: 1100px; margin: auto; padding: 20px; }
+        .module {
+            background: white; padding: 25px; margin: 20px 0; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-left: 6px solid #FF9900;
+            display: none;
+        }
+        .module.active { display: block; }
+
+        .explicacion {
+            background: #f0f7ff; padding: 20px; border-radius: 10px;
+            margin: 20px 0; border-left: 6px solid #FF9900;
+            line-height: 1.7; font-size: 1.02em;
+        }
+        .mapa {
+            background: #fff9e6; padding: 18px; border: 2px solid #FF9900;
+            border-radius: 10px; margin: 20px 0; font-family: monospace;
+            white-space: pre-wrap; line-height: 1.6; overflow-x: auto;
+        }
+
+        button {
+            background: #FF9900; color: white; border: none; padding: 12px 20px;
+            border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%;
+        }
+        button:hover { background: #ff7700; }
+
+        input, select {
+            padding: 12px; margin: 10px 0; width: 100%; border-radius: 6px;
+            border: 1px solid #0066CC; box-sizing: border-box;
+        }
+        .result {
+            margin-top: 20px; padding: 20px; background: #e6f2ff;
+            border-radius: 10px; border-left: 6px solid #FF9900;
+        }
+
+        /* GEL y Secuenciación */
+        .gel-container {
+            position: relative; height: auto; max-height: 340px;
+            background: linear-gradient(#1a3c1a, #0f2a0f); border: 3px solid #FF9900;
+            border-radius: 12px; padding: 10px; overflow: hidden;
+        }
+        canvas.gel-canvas {
+            background: #0a1f0a; border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 120, 0.3);
+            width: 100%; height: auto; max-height: 300px;
+        }
+
+        .seq-container {
+            background: #f8f9fa; border: 3px solid #FF9900;
+            border-radius: 12px; padding: 15px; margin-top: 15px;
+        }
+        .seq-title { color: #FF9900; font-weight: bold; margin-bottom: 10px; }
+        .seq-result {
+            font-family: monospace; background: white; padding: 15px;
+            border-radius: 8px; border: 1px solid #ddd; line-height: 1.6; overflow-x: auto;
+        }
+
+        footer {
+            background: #003366; color: white; text-align: center;
+            padding: 20px; margin-top: 40px; font-size: 0.95em;
+        }
+
+        /* RESPONSIVE - Móvil sin romper desktop */
+        @media (max-width: 768px) {
+            main { padding: 15px; }
+            .module { padding: 20px; }
+            .explicacion { padding: 18px; }
+            nav a { margin: 6px 4px; padding: 8px 12px; font-size: 0.95em; }
+            header { padding: 20px; }
+            footer { padding: 15px; }
+            /* PCR se apila verticalmente en móvil */
+            #pcr > div[style*="display: flex"] {
+                flex-direction: column !important;
+                gap: 20px;
+            }
+            .gel-container { max-height: 280px; }
+            canvas.gel-canvas { max-height: 220px; }
+        }
+
+        /* Mejor experiencia táctil */
+        button, input, select {
+            min-height: 48px;
+            font-size: 1rem;
+        }
+/* ===== SECCIÓN PROYECTO (ANIMADA) ===== */
+
+.fase-container {
+    display: grid;
+    gap: 18px;
+    margin-top: 20px;
+}
+
+.fase-card {
+    background: white;
+    padding: 18px;
+    border-radius: 12px;
+    border-left: 6px solid #FF9900;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeUp 0.8s ease forwards;
+}
+
+/* Animación escalonada */
+.fase-card:nth-child(1) { animation-delay: 0.1s; }
+.fase-card:nth-child(2) { animation-delay: 0.2s; }
+.fase-card:nth-child(3) { animation-delay: 0.3s; }
+.fase-card:nth-child(4) { animation-delay: 0.4s; }
+.fase-card:nth-child(5) { animation-delay: 0.5s; }
+
+.fase-card:hover {
+    transform: translateY(-5px) scale(1.01);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+/* Animación principal */
+@keyframes fadeUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+    </style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+    <div id="falling-fishes"></div>
+    <img src="https://pngimg.com/uploads/fish/fish_PNG1147.png" id="fish">
+    <h2 id="loader-text">Haz clic en el pescado para entrar 🐟</h2>
+</div>
+
+<header>
+    <h1>Guía de Biología Molecular - Unimetro</h1>
+    <p>Simulador Educativo de Diagnóstico Molecular</p>
+</header>
+
+<nav>
+    <a href="#" class="nav-link active" data-module="introduccion">Introducción</a>
+    <a href="#" class="nav-link" data-module="muestra">Toma de Muestra</a>
+    <a href="#" class="nav-link" data-module="calidad">Control de Calidad</a>
+    <a href="#" class="nav-link" data-module="pcr">PCR</a>
+    <a href="#" class="nav-link" data-module="secuenciacion">Secuenciación</a>
+    <a href="#" class="nav-link" data-module="enzimas">Enzimas</a>
+    <a href="#" class="nav-link" data-module="ia">🤖 Asistente IA</a>
+    <a href="#" class="nav-link" data-module="practica">🧪 Práctica Integrada</a>
+</nav>
+
+<main>
+    <!-- INTRODUCCIÓN -->
+    <div id="introduccion" class="module active">
+        <h2>🎯 Introducción al Diagnóstico Molecular</h2>
+        <div class="explicacion">
+<div class="explicacion">
+    <h3>🚀 Desarrollo de la Aplicación</h3>
+
+    <p>
+        Esta aplicación fue desarrollada como un laboratorio virtual interactivo,
+        integrando biología molecular con herramientas digitales modernas.
+    </p>
+
+    <div class="fase-container">
+
+        <div class="fase-card">
+            <strong>🧠 Concepto</strong><br>
+            Se planteó una herramienta educativa que permita simular el proceso completo
+            de diagnóstico molecular de forma interactiva.
+        </div>
+
+        <div class="fase-card">
+            <strong>🎨 Diseño</strong><br>
+            Se estructuró en módulos independientes para representar cada etapa del laboratorio:
+            muestra, calidad, PCR, secuenciación y enzimas.
+        </div>
+
+        <div class="fase-card">
+            <strong>⚙️ Implementación</strong><br>
+            Se desarrolló usando HTML, CSS y JavaScript, incorporando simulaciones visuales
+            como el gel de electroforesis y análisis de secuencias.
+        </div>
+
+        <div class="fase-card">
+            <strong>🤖 Integración de IA</strong><br>
+            Se añadió un asistente inteligente capaz de explicar conceptos y guiar al usuario
+            durante el proceso.
+        </div>
+
+        <div class="fase-card">
+            <strong>🧪 Resultado</strong><br>
+            Se obtuvo una aplicación funcional que simula un entorno real de diagnóstico molecular,
+            facilitando el aprendizaje práctico.
+        </div>
+
+    </div>
+
+    <p style="margin-top:15px;">
+        💡 <em>Aprender haciendo: esa es la base de esta aplicación.</em>
+    </p>
+</div>
+
+            <p>El diagnóstico molecular es una disciplina de la biología molecular que permite detectar, identificar y caracterizar enfermedades, patógenos y alteraciones genéticas mediante el análisis directo del ADN o ARN. A diferencia de los métodos tradicionales (cultivos bacterianos, serología o microscopía), el diagnóstico molecular ofrece mayor sensibilidad, especificidad y rapidez, permitiendo resultados en pocas horas.</p>
+            <p>Esta tecnología revolucionó la medicina moderna. Desde la detección del VIH en los años 80 hasta la identificación masiva del SARS-CoV-2 en la pandemia del 2020, el diagnóstico molecular ha salvado millones de vidas. Hoy se utiliza en oncología (detección de mutaciones BRCA1/BRCA2), microbiología (tuberculosis resistente, dengue, zika), genética (enfermedades hereditarias), medicina forense y control de calidad en la industria alimentaria.</p>
+            <p><strong>Principales técnicas:</strong> PCR convencional, qPCR (PCR en tiempo real), secuenciación Sanger y Next Generation Sequencing (NGS), electroforesis, digestión con enzimas de restricción, entre otras.</p>
+        </div>
+    </div>
+
+    <!-- TOMA DE MUESTRA -->
+    <div id="muestra" class="module">
+        <h2>🧪 Toma de Muestra</h2>
+        <div class="explicacion">
+            <p>La toma de muestra es la base de todo el proceso. Cualquier error aquí compromete los resultados posteriores. Debe realizarse de forma aséptica, con material estéril y respetando protocolos de bioseguridad.</p>
+            <p><strong>Tipos de muestras y consideraciones:</strong></p>
+            <ul>
+                <li><strong>Sangre:</strong> Se recolecta en tubos con EDTA. Se usa para diagnósticos genéticos y virales. Debe procesarse en las primeras 24 horas.</li>
+                <li><strong>Hisopado nasofaríngeo o bucal:</strong> Ideal para virus respiratorios. El hisopo debe girarse 10-15 segundos en la zona.</li>
+                <li><strong>Tejido vegetal:</strong> Se toma hoja o raíz, se congela inmediatamente en nitrógeno líquido para evitar degradación de ARN.</li>
+                <li><strong>Suelo:</strong> Se usa para metagenómica. Se debe evitar contaminación cruzada entre muestras.</li>
+            </ul>
+            <p><strong>Protocolo general:</strong> Identificación del paciente, uso de guantes, desinfección del área, etiquetado correcto (nombre, fecha, hora, tipo de muestra) y transporte en cadena de frío.</p>
+            <div class="mapa">
+<strong>Mapa Conceptual - Toma de Muestra</strong>
+1. Preparación del equipo estéril
+2. Recolección aséptica
+3. Etiquetado inmediato
+4. Conservación (4°C o -80°C)
+5. Transporte al laboratorio
+            </div>
+        </div>
+        <select id="tipoMuestra">
+            <option>Sangre</option>
+            <option>Tejido vegetal</option>
+            <option>Hisopado bucal</option>
+            <option>Suelo</option>
+        </select>
+        <button onclick="evaluarMuestra()">Evaluar muestra</button>
+        <div id="muestraResult" class="result"></div>
+    </div>
+
+    <!-- CONTROL DE CALIDAD -->
+    <div id="calidad" class="module">
+        <h2>📊 Control de Calidad (260/280)</h2>
+        <div class="explicacion">
+            <p>Después de la extracción, es obligatorio evaluar la calidad del ácido nucleico. El método más utilizado es la espectrofotometría NanoDrop o similar.</p>
+            <p><strong>Interpretación detallada de ratios:</strong></p>
+            <ul>
+                <li><strong>A260/A280:</strong> 1.8 - 2.0 indica ADN puro. Menor a 1.8 = proteínas. Mayor a 2.0 = ARN o fenol.</li>
+                <li><strong>A260/A230:</strong> Ideal > 2.0. Valores bajos indican contaminantes como sales o guanidina.</li>
+            </ul>
+            <p>Una muestra de buena calidad debe tener concentración entre 20-100 ng/µL y ratios aceptables para proceder a PCR o secuenciación.</p>
+        </div>
+        <input type="number" id="a260" placeholder="Absorbancia A260" step="0.01">
+        <input type="number" id="a280" placeholder="Absorbancia A280" step="0.01">
+        <button onclick="calcularPureza()">Calcular Pureza</button>
+        <div id="result" class="result"></div>
+    </div>
+
+    <!-- PCR -->
+    <div id="pcr" class="module">
+        <h2>🔥 PCR - Reacción en Cadena de la Polimerasa</h2>
+        <div class="explicacion">
+            <p>La PCR, inventada por Kary Mullis en 1983, es la técnica más usada en biología molecular. Permite amplificar un segmento específico de ADN hasta mil millones de veces.</p>
+            <p><strong>Componentes esenciales:</strong> ADN molde, primers, dNTPs, Taq polimerasa, buffer con Mg²⁺.</p>
+            <p><strong>Pasos de cada ciclo:</strong></p>
+            <ol>
+                <li>Desnaturalización (94-98°C): Separación de hebras.</li>
+                <li>Anillamiento (50-65°C): Unión de primers.</li>
+                <li>Extensión (72°C): Síntesis de nueva hebra por Taq polimerasa.</li>
+            </ol>
+            <p>Después de 30-35 ciclos se corre el producto en un gel de agarosa para visualizar las bandas.</p>
+        </div>
+        <div style="display: flex; gap: 25px; flex-wrap: wrap; margin: 25px 0;">
+            <div style="flex: 1; min-width: 320px;">
+                <label style="font-weight: bold; display: block; margin-bottom: 8px;">Elige los primers específicos:</label>
+                <select id="primers" style="width: 100%; padding: 14px; font-size: 1.05em;">
+                    <option value="ITS">ITS - Hongos (≈ 600 pb)</option>
+                    <option value="COI">COI - Insectos (≈ 650 pb)</option>
+                    <option value="16S">16S - Bacterias (≈ 1500 pb)</option>
+                </select>
+               
+                <button onclick="simularPCRConGel()" style="width: 100%; padding: 16px; font-size: 1.15em; margin-top: 15px;">
+                    🚀 Iniciar Termociclador y Correr Gel
+                </button>
+            </div>
+            <div style="flex: 1; min-width: 380px;">
+                <div class="gel-container">
+                    <h3 style="color: #FF9900; text-align: center; margin: 0 0 12px 0; font-size: 1.1em;">📊 Gel de Electroforesis (Agarosa 1.5%)</h3>
+                    <canvas id="gelCanvas" width="380" height="300" class="gel-canvas"></canvas>
+                </div>
+                <div id="pcrResult" class="result" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SECUENCIACIÓN -->
+    <div id="secuenciacion" class="module">
+        <h2>🔬 Secuenciación de ADN</h2>
+        <div class="explicacion">
+            <p>La secuenciación permite conocer el orden exacto de las bases nitrogenadas. El método Sanger (1977) fue el estándar durante décadas. Actualmente se usan tecnologías de secuenciación masiva (Illumina, Oxford Nanopore).</p>
+            <p><strong>Aplicaciones:</strong> Identificación de mutaciones, filogenia, metagenómica, diagnóstico de enfermedades genéticas.</p>
+        </div>
+        <input type="text" id="secuencia" placeholder="Ingresa secuencia (Ej: ATGCGTAA)" style="font-family: monospace; font-size: 1.1em;">
+        <button onclick="analizarSecuencia()">Analizar Secuencia</button>
+        <div id="seqResult" class="result"></div>
+    </div>
+
+    <!-- ENZIMAS -->
+    <div id="enzimas" class="module">
+        <h2>✂️ Enzimas de Restricción</h2>
+        <div class="explicacion">
+            <p>Descubiertas en los años 60 por Arber, Smith y Nathans (Premio Nobel 1978). Son "tijeras moleculares" que cortan el ADN en secuencias específicas.</p>
+            <p>Se clasifican en Tipo I, II y III. Las más usadas en laboratorio son las de Tipo II.</p>
+            <div class="mapa">
+EcoRI → GAATTC<br>
+HindIII → AAGCTT<br>
+BamHI → GGATCC<br>
+            </div>
+        </div>
+        <select id="enzima">
+            <option value="EcoRI">EcoRI (GAATTC)</option>
+            <option value="HindIII">HindIII (AAGCTT)</option>
+            <option value="BamHI">BamHI (GGATCC)</option>
+        </select>
+        <button onclick="simularCorteVisual()">Simular Corte y Ver Mapa</button>
+        <div id="enzimaResult" class="result"></div>
+    </div>
+
+    <!-- ASISTENTE IA -->
+    <div id="ia" class="module">
+        <h2>🤖 Asistente IA en Diagnóstico Molecular</h2>
+        <div class="explicacion">
+            <p>Este asistente te ayuda a entender cualquier tema de la guía.
+            <strong>Modo Simulado</strong> siempre funciona sin internet.<br>
+            El <strong>Modo IA Real</strong> (Gemini) puede no estar disponible en algunos momentos.</p>
+        </div>
+        <div style="margin: 15px 0; padding: 10px; background: #fff9e6; border-radius: 8px;">
+            <label style="font-weight: bold;">
+                <input type="checkbox" id="modoReal" onchange="toggleModoReal()">
+                Activar Modo IA Real (Gemini)
+            </label>
+            <span id="estadoModo" style="margin-left:12px; color:#0066CC;">(Modo Simulado activado)</span>
+        </div>
+        <div id="chatContainer" style="border: 2px solid #FF9900; border-radius: 12px; height: 420px; overflow-y: auto; padding: 15px; background: #f9f9f9; margin-bottom: 15px; scroll-behavior: smooth;">
+        </div>
+        <div style="margin: 12px 0; display: flex; flex-wrap: wrap; gap: 8px;">
+            <button onclick="enviarSugerencia(this)" style="font-size: 0.9em;">¿Qué significa un ratio 260/280 de 1.6?</button>
+            <button onclick="enviarSugerencia(this)" style="font-size: 0.9em;">Explica cómo funciona la PCR</button>
+            <button onclick="enviarSugerencia(this)" style="font-size: 0.9em;">¿Qué hace la enzima EcoRI?</button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <input type="text" id="iaInput" placeholder="Escribe tu pregunta aquí..."
+                   style="flex: 1; padding: 12px;"
+                   onkeypress="if(event.key === 'Enter') enviarMensaje()">
+            <button onclick="enviarMensaje()">Enviar</button>
+            <button onclick="limpiarChat()">Limpiar chat</button>
+        </div>
+    </div>
+
+    <!-- PRÁCTICA INTEGRADA -->
+    <div id="practica" class="module">
+        <h2>🧪 Práctica Integrada - Laboratorio Virtual</h2>
+        <div class="explicacion">
+            <p>Realiza aquí todo el flujo completo de diagnóstico molecular.</p>
+        </div>
+        <div class="explicacion">
+            <h3>1. Toma de Muestra</h3>
+            <select id="tipoMuestraPractica">
+                <option>Sangre</option><option>Tejido vegetal</option><option>Hisopado bucal</option><option>Suelo</option>
+            </select>
+            <button onclick="evaluarMuestraPractica()">Procesar Muestra</button>
+            <div id="muestraResultPractica" class="result"></div>
+        </div>
+        <div class="explicacion">
+            <h3>2. Control de Calidad</h3>
+            <input type="number" id="a260Practica" placeholder="A260" step="0.01">
+            <input type="number" id="a280Practica" placeholder="A280" step="0.01">
+            <button onclick="calcularPurezaPractica()">Calcular Pureza</button>
+            <div id="calidadResultPractica" class="result"></div>
+        </div>
+        <div class="explicacion">
+            <h3>3. PCR</h3>
+            <select id="primersPractica">
+                <option value="ITS">ITS - Hongos (≈ 600 pb)</option>
+                <option value="COI">COI - Insectos (≈ 650 pb)</option>
+                <option value="16S">16S - Bacterias (≈ 1500 pb)</option>
+            </select>
+            <button onclick="simularPCRConGelPractica()" style="width: 100%; margin-top: 10px;">🚀 Iniciar Termociclador y Correr Gel</button>
+            <div style="margin-top: 15px;" class="gel-container">
+                <h4 style="color: #FF9900; text-align: center; margin: 8px 0;">Gel de Electroforesis (Mini)</h4>
+                <canvas id="gelCanvasPractica" width="340" height="260" class="gel-canvas"></canvas>
+            </div>
+            <div id="pcrResultPractica" class="result" style="margin-top: 10px;"></div>
+        </div>
+        <div class="explicacion">
+            <h3>4. Secuenciación</h3>
+            <input type="text" id="secuenciaPractica" placeholder="Ingresa secuencia (Ej: ATGCGTAA)" style="font-family: monospace;">
+            <button onclick="analizarSecuenciaPractica()">Analizar Secuencia</button>
+            <div id="seqResultPractica" class="result"></div>
+        </div>
+        <div class="explicacion">
+            <h3>5. Digestión Enzimática</h3>
+            <select id="enzimaPractica">
+                <option value="EcoRI">EcoRI (GAATTC)</option>
+                <option value="HindIII">HindIII (AAGCTT)</option>
+                <option value="BamHI">BamHI (GGATCC)</option>
+            </select>
+            <button onclick="simularCortePractica()">Realizar Digestión</button>
+            <div id="enzimaResultPractica" class="result"></div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    Desarrollado por: Nicolle Julio Pinedo, Yerlis Carolina Martínez Collazos, Laura Daniela Amaya Rodríguez, María Inés Berrio Gamarra, José Andrés Muñoz Rivero<br>
+    Bajo supervisión del Profesor José Luis Villarreal Camacho<br>
+    Universidad Metropolitana de Barranquilla © 2026
+</footer>
+
+<script>
+// ==================== JAVASCRIPT COMPLETO ====================
+
+const loader = document.getElementById("loader");
+const mainFish = document.getElementById("fish");
+const fallingContainer = document.getElementById("falling-fishes");
+const loaderText = document.getElementById("loader-text");
+let clickCount = 0;
+const CLICKS_NEEDED = 5;
+
+function createFallingFish() {
+    const fish = document.createElement("img");
+    fish.src = "https://pngimg.com/uploads/fish/fish_PNG1149.png";
+    fish.classList.add("fish-falling");
+    fish.style.left = Math.random() * 100 + "vw";
+    fish.style.animationDuration = (5 + Math.random() * 6) + "s";
+    fish.style.animationDelay = Math.random() * 4 + "s";
+    fish.style.width = (35 + Math.random() * 45) + "px";
+    fallingContainer.appendChild(fish);
+    fish.addEventListener("animationend", () => fish.remove());
+}
+
+setInterval(createFallingFish, 700);
+
+mainFish.addEventListener("click", () => {
+    clickCount++;
+    if (clickCount < CLICKS_NEEDED) {
+        loaderText.textContent = `¡Dale, ${CLICKS_NEEDED - clickCount} clic${CLICKS_NEEDED - clickCount === 1 ? '' : 's'} más! 🐟`;
+        return;
+    }
+    loader.classList.add("hidden");
+    setTimeout(() => loader.style.display = "none", 900);
+});
+
+// Navegación
+document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        this.classList.add('active');
+        document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+        document.getElementById(this.getAttribute('data-module')).classList.add('active');
+    });
+});
+
+// ==================== FUNCIONES DEL SIMULADOR ====================
+
+function evaluarMuestra(){
+    let tipo = document.getElementById("tipoMuestra").value;
+    document.getElementById("muestraResult").innerHTML = `✅ Muestra de <strong>${tipo}</strong> procesada correctamente.`;
+}
+
+function calcularPureza(){
+    let a260 = parseFloat(document.getElementById("a260").value);
+    let a280 = parseFloat(document.getElementById("a280").value);
+    if(!a260 || !a280) return;
+    let ratio = (a260 / a280).toFixed(2);
+    let mensaje = (ratio >= 1.8 && ratio <= 2.0) ? "✅ ADN de excelente calidad" : "⚠️ Posible contaminación";
+    document.getElementById("result").innerHTML = `Ratio 260/280: <strong>${ratio}</strong><br>${mensaje}`;
+}
+
+function simularPCRConGel() {
+    const primers = document.getElementById("primers").value;
+    const resultDiv = document.getElementById("pcrResult");
+    const canvas = document.getElementById("gelCanvas");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0a1f0a";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#333";
+    for (let i = 0; i < 4; i++) {
+        ctx.fillRect(35 + i * 85, 18, 28, 16);
+    }
+    let tamañoBanda = 600;
+    let nombrePrimer = "ITS (Hongos)";
+    if (primers === "COI") { tamañoBanda = 650; nombrePrimer = "COI (Insectos)"; }
+    else if (primers === "16S") { tamañoBanda = 1500; nombrePrimer = "16S (Bacterias)"; }
+    const posicionY = 265 - Math.min(tamañoBanda / 7, 220);
+    ctx.shadowColor = "#00ff88";
+    ctx.shadowBlur = 22;
+    ctx.fillStyle = "#00ff88";
+    ctx.fillRect(68, posicionY, 38, 22);
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#88ffcc";
+    ctx.fillRect(175, 195, 30, 9);
+    const pesos = [2000, 1500, 1000, 750, 500, 250];
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#ffee88";
+    for (let i = 0; i < pesos.length; i++) {
+        const y = 265 - (pesos[i] / 8);
+        ctx.fillRect(285, y, 22, 7);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "9px Arial";
+        ctx.fillText(pesos[i] + " pb", 315, y + 7);
+        ctx.fillStyle = "#ffee88";
+    }
+    resultDiv.innerHTML = `
+        ✅ <strong>PCR exitosa</strong> con primers <strong>${nombrePrimer}</strong><br>
+        📍 Fragmento amplificado ≈ <strong>${tamañoBanda} pb</strong><br>
+        <small>✅ Banda clara y brillante en el gel. Resultado de laboratorio ideal.</small>
+    `;
+    canvas.style.transition = "filter 0.8s";
+    canvas.style.filter = "brightness(1.6) saturate(1.3)";
+    setTimeout(() => { canvas.style.filter = "brightness(1) saturate(1)"; }, 900);
+}
+
+function simularPCRConGelPractica() {
+if (!practica.muestra) {
+    alert("Primero realiza la toma de muestra");
+    return;
+}
+
+if (!practica.pureza || practica.pureza < 1.8) {
+    alert("La muestra no es de buena calidad para PCR");
+    return;
+}
+    const primers = document.getElementById("primersPractica").value;
+    const resultDiv = document.getElementById("pcrResultPractica");
+    const canvas = document.getElementById("gelCanvasPractica");
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#0a1f0a";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "#333";
+    for (let i = 0; i < 4; i++) {
+        ctx.fillRect(30 + i * 72, 15, 24, 14);
+    }
+    let tamañoBanda = 600;
+practica.pcr = tamañoBanda;
+    let nombrePrimer = "ITS (Hongos)";
+    if (primers === "COI") { tamañoBanda = 650; nombrePrimer = "COI (Insectos)"; }
+    else if (primers === "16S") { tamañoBanda = 1500; nombrePrimer = "16S (Bacterias)"; }
+    const posicionY = 225 - Math.min(tamañoBanda / 8, 190);
+    ctx.shadowColor = "#00ff88";
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = "#00ff88";
+    ctx.fillRect(62, posicionY, 32, 19);
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = "#88ffcc";
+    ctx.fillRect(155, 170, 26, 8);
+    const pesos = [2000, 1500, 1000, 750, 500, 250];
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = "#ffee88";
+    for (let i = 0; i < pesos.length; i++) {
+        const y = 225 - (pesos[i] / 9);
+        ctx.fillRect(255, y, 19, 6);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "8px Arial";
+        ctx.fillText(pesos[i] + " pb", 280, y + 6);
+        ctx.fillStyle = "#ffee88";
+    }
+    resultDiv.innerHTML = `
+        ✅ <strong>PCR exitosa</strong> con primers <strong>${nombrePrimer}</strong><br>
+        📍 Fragmento ≈ <strong>${tamañoBanda} pb</strong>
+    `;
+}
+
+function evaluarMuestraPractica(){
+    let tipo = document.getElementById("tipoMuestraPractica").value;
+practica.muestra = tipo;
+    document.getElementById("muestraResultPractica").innerHTML = `✅ Muestra de <strong>${tipo}</strong> procesada correctamente.`;
+}
+
+function calcularPurezaPractica(){
+    let a260 = parseFloat(document.getElementById("a260Practica").value);
+    let a280 = parseFloat(document.getElementById("a280Practica").value);
+    if(!a260 || !a280) return;
+    let ratio = (a260 / a280).toFixed(2);
+practica.pureza = ratio;
+    let mensaje = (ratio >= 1.8 && ratio <= 2.0) ? "✅ ADN de excelente calidad" : "⚠️ Posible contaminación";
+    document.getElementById("calidadResultPractica").innerHTML = `Ratio 260/280: <strong>${ratio}</strong><br>${mensaje}`;
+}
+
+// Funciones de Secuenciación y Enzimas (completa)
+function analizarSecuencia(){
+    let seq = document.getElementById("secuencia").value.trim().toUpperCase();
+    let resultDiv = document.getElementById("seqResult");
+    if(!seq) {
+        resultDiv.innerHTML = `<span style="color:#cc0000;">Por favor ingresa una secuencia de ADN</span>`;
+        return;
+    }
+    if (!/^[ATCG]+$/.test(seq)) {
+        resultDiv.innerHTML = `<span style="color:#cc0000;">Solo se permiten las bases A, T, C, G</span>`;
+        return;
+    }
+    let length = seq.length;
+    let gc = ((seq.match(/[GC]/g) || []).length / length * 100).toFixed(1);
+    let gcColor = gc > 50 ? "#006600" : (gc > 40 ? "#ff8800" : "#cc0000");
+    const complement = {'A':'T','T':'A','C':'G','G':'C'};
+    let revComp = seq.split('').reverse().map(b => complement[b]).join('');
+    const codonTable = { /* ... misma tabla que tenías ... */ 
+        'ATG':'M','ATA':'I','ATC':'I','ATT':'I','ACA':'T','ACC':'T','ACG':'T','ACT':'T',
+        'AAC':'N','AAT':'N','AAA':'K','AAG':'K','AGC':'S','AGT':'S','AGA':'R','AGG':'R',
+        'CTA':'L','CTC':'L','CTG':'L','CTT':'L','CCA':'P','CCC':'P','CCG':'P','CCT':'P',
+        'CAC':'H','CAT':'H','CAA':'Q','CAG':'Q','CGA':'R','CGC':'R','CGG':'R','CGT':'R',
+        'GTA':'V','GTC':'V','GTG':'V','GTT':'V','GCA':'A','GCC':'A','GCG':'A','GCT':'A',
+        'GAC':'D','GAT':'D','GAA':'E','GAG':'E','GGA':'G','GGC':'G','GGG':'G','GGT':'G',
+        'TCA':'S','TCC':'S','TCG':'S','TCT':'S','TTC':'F','TTT':'F','TTA':'L','TTG':'L',
+        'TAC':'Y','TAT':'Y','TAA':'*','TAG':'*','TGA':'*'
+    };
+    function translate(start) {
+        let prot = '';
+        for (let i = start; i < seq.length - 2; i += 3) {
+            let codon = seq.substring(i, i+3);
+            prot += codonTable[codon] || '?';
+        }
+        return prot || '—';
+    }
+    let prot1 = translate(0);
+    let prot2 = translate(1);
+    let prot3 = translate(2);
+    resultDiv.innerHTML = `
+        <div class="seq-container">
+            <div class="seq-title">📋 Resultado del Análisis de Secuencia</div>
+            <div class="seq-result">
+                <strong>Secuencia original:</strong> ${seq}<br>
+                <strong>Longitud:</strong> ${length} pb<br><br>
+                <strong>Contenido GC:</strong> <span style="color:${gcColor}; font-weight:bold;">${gc}%</span><br><br>
+                <strong>Secuencia complementaria inversa:</strong><br>
+                ${revComp}<br><br>
+                <strong>Traducción a proteína (3 marcos de lectura):</strong><br>
+                Marco 1: ${prot1}<br>
+                Marco 2: ${prot2}<br>
+                Marco 3: ${prot3}<br><br>
+                <small>* = codón de parada</small>
+            </div>
+        </div>
+    `;
+}
+
+// (Agrega aquí las funciones restantes: analizarSecuenciaPractica, simularCorteVisual, simularCortePractica, etc.)
+
+// ==================== ASISTENTE IA ====================
+let modoRealActivo = false;
+const apiKeyGemini = "AIzaSyDVUzjjMFiM8HAitO3xdJNgAbhzZ_efxcc";
+
+function toggleModoReal() {
+    modoRealActivo = document.getElementById("modoReal").checked;
+    const estado = document.getElementById("estadoModo");
+    estado.textContent = modoRealActivo ? "(✅ Modo IA Real activado)" : "(Modo Simulado activado)";
+}
+
+function agregarMensaje(texto, esUsuario) {
+    const container = document.getElementById("chatContainer");
+    const div = document.createElement("div");
+    div.style.marginBottom = "14px";
+    div.style.padding = "11px 15px";
+    div.style.borderRadius = "12px";
+    div.style.maxWidth = "85%";
+    div.style.lineHeight = "1.5";
+    if (esUsuario) {
+        div.style.marginLeft = "auto";
+        div.style.background = "#FF9900";
+        div.style.color = "white";
+        div.style.textAlign = "right";
+    } else {
+        div.style.marginRight = "auto";
+        div.style.background = "#e6f2ff";
+        div.style.borderLeft = "5px solid #FF9900";
+    }
+    div.innerHTML = texto;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function limpiarChat() {
+    document.getElementById("chatContainer").innerHTML = "";
+    agregarMensaje("¡Hola! Soy tu asistente de Biología Molecular de Unimetro.<br>El Modo Simulado siempre funciona. ¿En qué tema necesitas ayuda?", false);
+}
+
+function enviarSugerencia(btn) {
+    const pregunta = btn.textContent;
+    agregarMensaje(pregunta, true);
+    procesarRespuesta(pregunta);
+}
+
+function enviarMensaje() {
+    const input = document.getElementById("iaInput");
+    const texto = input.value.trim();
+    if (!texto) return;
+    agregarMensaje(texto, true);
+    input.value = "";
+    procesarRespuesta(texto);
+}
+
+async function procesarRespuesta(pregunta) {
+    let respuesta = obtenerRespuestaSimulada(pregunta);
+    if (modoRealActivo) {
+        try {
+            const respuestaReal = await llamarGemini(pregunta);
+            if (respuestaReal) respuesta = respuestaReal;
+        } catch (error) {
+            respuesta += "<br><small style='color:#cc0000;'>(Modo Real no disponible - usando simulado)</small>";
+        }
+    }
+    agregarMensaje(respuesta, false);
+}
+
+function obtenerRespuestaSimulada(preg) {
+    const p = preg.toLowerCase().trim();
+    if (p.includes("260/280") || p.includes("1.6")) return "Un ratio A260/A280 de <strong>1.6</strong> indica <strong>contaminación por proteínas</strong>. El valor ideal es entre 1.8 y 2.0.";
+    if (p.includes("pcr")) return "La PCR amplifica ADN mediante 3 pasos por ciclo: desnaturalización, anillamiento y extensión.";
+    if (p.includes("ecori")) return "EcoRI corta el ADN en la secuencia <strong>GAATTC</strong>.";
+    return "¡Buena pregunta! Puedo ayudarte con toma de muestra, control de calidad, PCR, secuenciación o enzimas. ¿Puedes ser más específico?";
+}
+
+async function llamarGemini(pregunta) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKeyGemini}`;
+    const bodyData = {
+        contents: [{ parts: [{ text: "Eres un asistente experto en Biología Molecular. Explica de forma clara y educativa: " + pregunta }] }]
+    };
+    const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyData) });
+    if (!response.ok) throw new Error("Error");
+    const data = await response.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Respuesta recibida de Gemini.";
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+    const iaModule = document.getElementById("ia");
+    if (iaModule) {
+        const observer = new MutationObserver(() => {
+            if (iaModule.classList.contains("active") && document.getElementById("chatContainer").children.length === 0) {
+                limpiarChat();
+            }
+        });
+        observer.observe(iaModule, { attributes: true });
+    }
+});
+
+// ==================== FUNCIONES FALTANTES (añade las que te falten de tu versión anterior) ====================
+// simularCorteVisual(), analizarSecuenciaPractica(), simularCortePractica(), etc.
+
+// ==================== FUNCIONES FALTANTES - COMPLETAR AQUÍ ====================
+
+// 1. SIMULAR CORTE CON ENZIMAS DE RESTRICCIÓN (Módulo Enzimas)
+function simularCorteVisual() {
+    const enzima = document.getElementById("enzima").value;
+    const resultDiv = document.getElementById("enzimaResult");
+    
+    let secuenciaEjemplo = "ATGGAATTCAGCTTAAGCTTGGATCC";
+    let sitio = "";
+    let nombre = "";
+    let fragmentos = [];
+    
+    switch(enzima) {
+        case "EcoRI":
+            sitio = "GAATTC";
+            nombre = "EcoRI";
+            fragmentos = ["ATG", "AATTCA", "GCTTAAGCTTGGATCC"];
+            break;
+        case "HindIII":
+            sitio = "AAGCTT";
+            nombre = "HindIII";
+            fragmentos = ["ATGGAATTCAGC", "TTAAGCTTGGATCC"];
+            break;
+        case "BamHI":
+            sitio = "GGATCC";
+            nombre = "BamHI";
+            fragmentos = ["ATGGAATTCAGCTTAAGCTTG", "GATCC"];
+            break;
+    }
+    
+    resultDiv.innerHTML = `
+        <div class="seq-container">
+            <div class="seq-title">✂️ Digestión con ${nombre}</div>
+            <div class="seq-result">
+                <strong>Secuencia original:</strong><br>
+                ${secuenciaEjemplo}<br><br>
+                
+                <strong>Sitio de corte:</strong> <span style="color:#FF9900; font-weight:bold;">${sitio}</span><br><br>
+                
+                <strong>Fragmentos generados:</strong><br>
+              ${fragmentos.map((frag, i) => `Fragmento ${i+1}: <strong>${frag}</strong> (${frag.length} pb)`).join('<br>')}
+                <br><br>
+                <small>✅ Digestión simulada correctamente. Los fragmentos se visualizarían en un gel de electroforesis.</small>
+            </div>
+        </div>
+    `;
+}
+
+// 2. SIMULAR CORTE EN LA PRÁCTICA INTEGRADA
+function simularCortePractica() {
+if (!practica.secuencia) {
+    alert("Primero analiza la secuencia");
+    return;
+}
+    const enzima = document.getElementById("enzimaPractica").value;
+    const resultDiv = document.getElementById("enzimaResultPractica");
+    
+    let nombre = enzima;
+    let sitio = "";
+    
+    if (enzima === "EcoRI") sitio = "GAATTC";
+    else if (enzima === "HindIII") sitio = "AAGCTT";
+    else if (enzima === "BamHI") sitio = "GGATCC";
+    
+    resultDiv.innerHTML = `
+        ✅ <strong>Digestión realizada con ${nombre}</strong><br><br>
+        Sitio de reconocimiento: <strong>${sitio}</strong><br>
+        <small>La enzima cortó la secuencia en los sitios específicos.<br>
+        Los fragmentos resultantes están listos para electroforesis o clonación.</small>
+    `;
+}
+
+// 3. ANALIZAR SECUENCIA EN LA PRÁCTICA INTEGRADA
+function analizarSecuenciaPractica() {
+if (!practica.pcr) {
+    alert("Primero realiza la PCR");
+    return;
+}
+    let seq = document.getElementById("secuenciaPractica").value.trim().toUpperCase();
+practica.secuencia = seq;
+    let resultDiv = document.getElementById("seqResultPractica");
+    
+    if (!seq) {
+        resultDiv.innerHTML = `<span style="color:#cc0000;">Por favor ingresa una secuencia de ADN</span>`;
+        return;
+    }
+    
+    if (!/^[ATCG]+$/.test(seq)) {
+        resultDiv.innerHTML = `<span style="color:#cc0000;">Solo se permiten las bases A, T, C, G</span>`;
+        return;
+    }
+    
+    let length = seq.length;
+    let gc = ((seq.match(/[GC]/g) || []).length / length * 100).toFixed(1);
+    let gcColor = gc > 50 ? "#006600" : (gc > 40 ? "#ff8800" : "#cc0000");
+    
+    const complement = {'A':'T','T':'A','C':'G','G':'C'};
+    let revComp = seq.split('').reverse().map(b => complement[b]).join('');
+    
+    resultDiv.innerHTML = `
+        <div class="seq-container">
+            <div class="seq-title">📋 Análisis de Secuencia - Práctica</div>
+            <div class="seq-result">
+                <strong>Secuencia:</strong> ${seq}<br>
+                <strong>Longitud:</strong> ${length} pb<br><br>
+          <strong>Contenido GC:</strong> <span style="color:${gcColor}; font-weight:bold;">${gc}%</span><br><br>
+                <strong>Secuencia complementaria inversa:</strong><br>
+                ${revComp}
+            </div>
+        </div>
+    `;
+}
+
+let practica = {
+    muestra: null,
+    pureza: null,
+    pcr: null,
+    secuencia: null
+};
+
+</script>
+</body>
+</html>
